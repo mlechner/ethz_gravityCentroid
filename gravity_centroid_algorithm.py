@@ -31,13 +31,17 @@ __copyright__ = '(C) 2022 by GeoBoink'
 __revision__ = '$Format:%H$'
 
 
+from PyQt5.QtCore import QVariant
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (QgsProcessing,
                        QgsFeatureSink,
                        QgsProcessingAlgorithm,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFeatureSink,
-                       QgsWkbTypes)
+                       QgsWkbTypes,
+                       QgsFields,
+                       QgsField,
+                       QgsFeature)
 
 
 class GravityCentroidAlgorithm(QgsProcessingAlgorithm):
@@ -59,6 +63,7 @@ class GravityCentroidAlgorithm(QgsProcessingAlgorithm):
     # calling from the QGIS console.
 
     OUTPUT = 'OUTPUT'
+    OUTPUT2 = 'OUTPUT2'
     INPUT = 'INPUT'
 
     def initAlgorithm(self, config):
@@ -83,9 +88,20 @@ class GravityCentroidAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr('Output layer')
+                self.tr('Output centroids layer')
             )
         )
+
+        # We add a second feature sink in which to store the main centroid (this
+        # usually takes the form of a newly created vector layer when the
+        # algorithm is run in QGIS).
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.OUTPUT2,
+                self.tr('Output centrum layer')
+            )
+        )
+
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -96,20 +112,58 @@ class GravityCentroidAlgorithm(QgsProcessingAlgorithm):
         # to uniquely identify the feature sink, and must be included in the
         # dictionary returned by the processAlgorithm function.
         source = self.parameterAsSource(parameters, self.INPUT, context)
+        sinkfieldname = 'cvcdist'
+        sinkfields = source.fields()
+        sinkfields.append(QgsField(sinkfieldname, QVariant.Double))
         (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
-                context, source.fields(), QgsWkbTypes.Point, source.sourceCrs())
+                context, sinkfields, QgsWkbTypes.Point, source.sourceCrs())
+        (sink2, dest_id2) = self.parameterAsSink(parameters, self.OUTPUT2,
+                context, QgsFields(), QgsWkbTypes.Point, source.sourceCrs())
+        cvgeom = None
 
         # Compute the number of steps to display within the progress bar and
         # get features from source
         total = 100.0 / source.featureCount() if source.featureCount() else 0
         features = source.getFeatures()
 
+        # first iteration to find the centroid of the overall convexhull
         for current, feature in enumerate(features):
             # Stop the algorithm if cancel button has been clicked
             if feedback.isCanceled():
                 break
 
-            # do the important stuff here
+            # Do all the important things NOW
+            if cvgeom is None:
+                cvgeom = feature.geometry().centroid()
+                cvgeom.convertToMultiType()
+            else:
+                # very slow!
+                #cvgeom = cvgeom.combine(feature.geometry().centroid())
+                # fast enough
+                cvgeom.addPartGeometry(feature.geometry().centroid())
+            
+            # Update the progress bar
+            feedback.setProgress(int(current * total))
+        cvcgeom = cvgeom.convexHull().centroid()
+        cvcpoint = QgsFeature()
+        cvcpoint.setGeometry(cvcgeom)
+        sink2.addFeature(cvcpoint, QgsFeatureSink.FastInsert)
+
+        feedback.pushInfo("Calculated overall centroid is located at: " + cvcgeom.asWkt())
+
+        # second iteration to fill sink with features and calculations
+        features = source.getFeatures()
+        for current, feature in enumerate(features):
+            # Stop the algorithm if cancel button has been clicked
+            if feedback.isCanceled():
+                break
+
+            ff = feature.fields()
+            ff.append(QgsField(sinkfieldname, QVariant.Double))
+            fa = feature.attributes()
+            fa.append(cvcgeom.distance(feature.geometry()))
+            feature.setFields(ff)
+            feature.setAttributes(fa)
             feature.setGeometry(feature.geometry().centroid())
 
             # Add a feature in the sink
@@ -124,7 +178,7 @@ class GravityCentroidAlgorithm(QgsProcessingAlgorithm):
         # statistics, etc. These should all be included in the returned
         # dictionary, with keys matching the feature corresponding parameter
         # or output names.
-        return {self.OUTPUT: dest_id}
+        return {self.OUTPUT: dest_id, self.OUTPUT2: dest_id2}
 
     def name(self):
         """
