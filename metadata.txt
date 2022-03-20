@@ -27,7 +27,7 @@ tags=python centroid
 
 homepage=https://github.com/mlechner/ethz_gravityCentroid
 category=Analysis
-icon=icon.png
+icon=ethz.png
 # experimental flag
 experimental=False
 

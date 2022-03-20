@@ -30,7 +30,7 @@ __copyright__ = '(C) 2022 by GeoBoink'
 
 __revision__ = '$Format:%H$'
 
-from ctypes.wintypes import POINT
+
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (QgsProcessing,
                        QgsFeatureSink,
@@ -97,7 +97,7 @@ class GravityCentroidAlgorithm(QgsProcessingAlgorithm):
         # dictionary returned by the processAlgorithm function.
         source = self.parameterAsSource(parameters, self.INPUT, context)
         (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
-                context, source.fields(), QgsWkbTypes.POINT, source.sourceCrs())
+                context, source.fields(), QgsWkbTypes.Point, source.sourceCrs())
 
         # Compute the number of steps to display within the progress bar and
         # get features from source
