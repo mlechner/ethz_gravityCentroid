@@ -41,6 +41,7 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingAlgorithm,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFeatureSink,
+                       QgsProcessingParameterString,
                        QgsWkbTypes,
                        QgsFields,
                        QgsField,
@@ -68,6 +69,7 @@ class GravityCentroidAlgorithm(QgsProcessingAlgorithm):
     OUTPUT = 'OUTPUT'
     OUTPUT2 = 'OUTPUT2'
     INPUT = 'INPUT'
+    COLUMN_NAME = 'COLUMN_NAME'
 
     def initAlgorithm(self, config):
         """
@@ -105,6 +107,16 @@ class GravityCentroidAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
+        # We add let the user chosse the name of the cvcdist column.
+        self.addParameter(
+            QgsProcessingParameterString(
+                self.COLUMN_NAME,
+                self.tr('Column Name'),
+                'cvcdist',
+                False
+            )
+        )
+
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -115,7 +127,8 @@ class GravityCentroidAlgorithm(QgsProcessingAlgorithm):
         # to uniquely identify the feature sink, and must be included in the
         # dictionary returned by the processAlgorithm function.
         source = self.parameterAsSource(parameters, self.INPUT, context)
-        sinkfieldname = 'cvcdist'
+        sinkfieldname = self.parameterAsString(parameters, self.COLUMN_NAME, context)
+        sinkfieldname = sinkfieldname if len(sinkfieldname) > 0 else 'cvcdist'
         sinkfields = source.fields()
         sinkfields.append(QgsField(sinkfieldname, QVariant.Double))
         (sink, dest_id) = self.parameterAsSink(parameters, self.OUTPUT,
