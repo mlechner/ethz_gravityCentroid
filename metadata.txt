@@ -6,7 +6,7 @@
 name=Gravity Centroid
 qgisMinimumVersion=3.4
 description=This plugin calculates the distances between centroids of features and the overall centrum
-version=0.1
+version=1.0
 author=GeoBoink
 email=marco@marcolechner.de
 
