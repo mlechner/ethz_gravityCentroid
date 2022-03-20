@@ -30,6 +30,9 @@ __copyright__ = '(C) 2022 by GeoBoink'
 
 __revision__ = '$Format:%H$'
 
+import os
+import inspect
+from qgis.PyQt.QtGui import QIcon
 
 from PyQt5.QtCore import QVariant
 from qgis.PyQt.QtCore import QCoreApplication
@@ -219,3 +222,8 @@ class GravityCentroidAlgorithm(QgsProcessingAlgorithm):
 
     def createInstance(self):
         return GravityCentroidAlgorithm()
+
+    def icon(self):
+        cmd_folder = os.path.split(inspect.getfile(inspect.currentframe()))[0]
+        icon = QIcon(os.path.join(os.path.join(cmd_folder, 'ethz.png')))
+        return icon
